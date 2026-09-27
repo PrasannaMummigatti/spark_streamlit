@@ -26,6 +26,7 @@ def load_model():
         "text-generation",
         model=MODEL_ID,
         trust_remote_code=True,
+        framework="pt",
         device=-1
     )
 

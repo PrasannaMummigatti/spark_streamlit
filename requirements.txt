@@ -1,6 +1,6 @@
 streamlit
 torch
-transformers==4.51.3
+transformers>=4.56.0
 accelerate
 safetensors
 huggingface_hub
