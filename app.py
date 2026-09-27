@@ -1,49 +1,78 @@
 import streamlit as st
-import torch
-from transformers import pipeline
+from llama_cpp import Llama
+from huggingface_hub import hf_hub_download
 
-MODEL_ID = "XHToken/Spark-X2.5-4B"
+
+# --------------------------------------------------
+# Page
+# --------------------------------------------------
 
 st.set_page_config(
-    page_title="Spark AI",
+    page_title="Spark-X2.5-4B",
     page_icon="🤖"
 )
 
-st.title("🤖 Spark AI")
+st.title("🤖 Spark-X2.5-4B")
 
-st.write("Python / Torch environment loaded")
-
-st.write(f"PyTorch: {torch.__version__}")
-st.write(f"CUDA available: {torch.cuda.is_available()}")
+st.caption("Running locally inside Streamlit Cloud")
 
 
-@st.cache_resource
+# --------------------------------------------------
+# Model
+# --------------------------------------------------
+
+@st.cache_resource(show_spinner="Downloading and loading Spark-X2.5-4B...")
 def load_model():
 
-    st.write("⏳ Starting Spark model loading...")
-
-    pipe = pipeline(
-        "text-generation",
-        model=MODEL_ID,
-        trust_remote_code=True,
-        framework="pt",
-        device=-1
+    model_path = hf_hub_download(
+        repo_id="abenzerps/Spark-X2.5-4B-GGUF",
+        filename="Spark-X2.5-4B-Q4_K_M.gguf"
     )
 
-    st.write("✅ Spark model loaded")
+    llm = Llama(
+        model_path=model_path,
 
-    return pipe
+        # Keep this modest for Streamlit Cloud
+        n_ctx=4096,
+
+        # CPU inference
+        n_gpu_layers=0,
+
+        # CPU threads
+        n_threads=4,
+
+        verbose=False
+    )
+
+    return llm
 
 
-pipe = load_model()
+# --------------------------------------------------
+# Load model
+# --------------------------------------------------
 
-st.success("Spark AI is ready!")
+try:
+
+    llm = load_model()
+
+except Exception as e:
+
+    st.error("Model failed to load.")
+
+    st.exception(e)
+
+    st.stop()
+
+
+# --------------------------------------------------
+# Chat
+# --------------------------------------------------
 
 query = st.text_area(
-    "Ask Spark",
-    placeholder="Enter your question...",
-    height=100
+    "Enter your question",
+    placeholder="Ask Spark-X2.5-4B something..."
 )
+
 
 if st.button("Generate", type="primary"):
 
@@ -53,28 +82,32 @@ if st.button("Generate", type="primary"):
 
     else:
 
-        messages = [
-            {
-                "role": "user",
-                "content": query
-            }
-        ]
+        with st.spinner("Spark is thinking..."):
 
-        with st.spinner("Thinking..."):
+            try:
 
-            result = pipe(
-                messages,
-                max_new_tokens=256,
-                temperature=0.7,
-                do_sample=True
-            )
+                response = llm.create_chat_completion(
 
-        generated = result[0]["generated_text"]
+                    messages=[
+                        {
+                            "role": "user",
+                            "content": query
+                        }
+                    ],
 
-        if isinstance(generated, list):
-            answer = generated[-1]["content"]
-        else:
-            answer = generated
+                    temperature=0.7,
 
-        st.markdown("### Response")
-        st.write(answer)
+                    max_tokens=512
+                )
+
+                answer = response["choices"][0]["message"]["content"]
+
+                st.markdown("### Response")
+
+                st.write(answer)
+
+            except Exception as e:
+
+                st.error("Generation failed.")
+
+                st.exception(e)
