@@ -1,8 +1,8 @@
 import streamlit as st
+import torch
 from transformers import pipeline
 
 MODEL_ID = "XHToken/Spark-X2.5-4B"
-
 
 st.set_page_config(
     page_title="Spark AI",
@@ -11,66 +11,69 @@ st.set_page_config(
 
 st.title("🤖 Spark AI")
 
+st.write("Python / Torch environment loaded")
+
+st.write(f"PyTorch: {torch.__version__}")
+st.write(f"CUDA available: {torch.cuda.is_available()}")
+
 
 @st.cache_resource
 def load_model():
 
-    model = pipeline(
+    st.write("⏳ Starting Spark model loading...")
+
+    pipe = pipeline(
         "text-generation",
         model=MODEL_ID,
         trust_remote_code=True,
         device=-1
     )
 
-    return model
+    st.write("✅ Spark model loaded")
+
+    return pipe
 
 
-try:
+pipe = load_model()
 
-    pipe = load_model()
+st.success("Spark AI is ready!")
 
-    query = st.text_area(
-        "Ask Spark",
-        placeholder="Enter your question...",
-        height=100
-    )
+query = st.text_area(
+    "Ask Spark",
+    placeholder="Enter your question...",
+    height=100
+)
 
-    if st.button("Generate", type="primary"):
+if st.button("Generate", type="primary"):
 
-        if query.strip():
+    if not query.strip():
 
-            messages = [
-                {
-                    "role": "user",
-                    "content": query
-                }
-            ]
+        st.warning("Please enter a question.")
 
-            with st.spinner("Thinking..."):
+    else:
 
-                result = pipe(
-                    messages,
-                    max_new_tokens=256,
-                    temperature=0.7,
-                    do_sample=True
-                )
+        messages = [
+            {
+                "role": "user",
+                "content": query
+            }
+        ]
 
-            generated = result[0]["generated_text"]
+        with st.spinner("Thinking..."):
 
-            if isinstance(generated, list):
-                answer = generated[-1]["content"]
-            else:
-                answer = generated
+            result = pipe(
+                messages,
+                max_new_tokens=256,
+                temperature=0.7,
+                do_sample=True
+            )
 
-            st.markdown("### Response")
-            st.write(answer)
+        generated = result[0]["generated_text"]
 
+        if isinstance(generated, list):
+            answer = generated[-1]["content"]
         else:
+            answer = generated
 
-            st.warning("Please enter a question.")
-
-
-except Exception as e:
-
-    st.error("Model failed to load.")
-    st.exception(e)
+        st.markdown("### Response")
+        st.write(answer)
